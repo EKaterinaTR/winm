@@ -1,0 +1,137 @@
+# WinM — графовая база знаний для визуальной новеллы
+
+Сервис для заполнения и использования графовой БД связей между понятиями мира визуальной новеллы: локации, персонажи, сцены, понятия. REST API для поиска, заглушка под LLM для ответов «по роли». Хранение в Neo4j и экспорт в файлы (для Git).
+
+## Технологии
+
+- **Сервер**: Python, FastAPI, Neo4j (чтение), RabbitMQ (публикация событий), Prometheus (метрики)
+- **Consumer**: Python, RabbitMQ (обработка очереди), Neo4j (запись), экспорт в JSONL
+- **Инфраструктура**: Docker Compose (Neo4j, RabbitMQ, Prometheus)
+
+## Локальный запуск
+
+### Вариант 1: Всё в Docker (рекомендуется)
+
+Нужны: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (или Docker + Docker Compose).
+
+```bash
+# В корне проекта (winm)
+cd c:\Users\User\Desktop\hw\winm
+
+# Опционально: скопировать .env (логин/пароль Neo4j и RabbitMQ)
+# Windows: copy .env.example .env
+# Linux/macOS: cp .env.example .env
+
+# Поднять всю систему одной командой
+docker compose up -d
+
+# Дождаться запуска (10–20 сек), проверить
+curl http://localhost:8000/health
+```
+
+После этого доступны:
+- **API**: http://localhost:8000  
+- **Neo4j Browser**: http://localhost:7474 (логин `neo4j`, пароль из `.env` или `password`)  
+- **RabbitMQ**: http://localhost:15672 (логин/пароль из `.env` или `guest`/`guest`)  
+- **Prometheus**: http://localhost:9090  
+
+Остановить всё:
+```bash
+docker compose down
+```
+
+### Вариант 2: Инфраструктура в Docker, сервер и consumer на хосте
+
+Удобно для разработки (перезапуск кода без пересборки образов).
+
+**Шаг 1.** Поднять только Neo4j, RabbitMQ и Prometheus:
+```bash
+docker compose up -d neo4j rabbitmq prometheus
+```
+
+**Шаг 2.** Установить зависимости и запустить сервер (в одном терминале):
+```bash
+cd server
+pip install -r requirements.txt
+set PYTHONPATH=%CD%;..
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+В PowerShell: `$env:PYTHONPATH="$PWD;.."; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+
+**Шаг 3.** В другом терминале — consumer:
+```bash
+cd consumer
+pip install -r requirements.txt
+set PYTHONPATH=%CD%;..
+python -m app.main
+```
+В PowerShell: `$env:PYTHONPATH="$PWD;.."; python -m app.main`
+
+По умолчанию сервер и consumer подключаются к `localhost:7687` (Neo4j) и `localhost:5672` (RabbitMQ). Если порты другие — задать переменные окружения (см. `server/app/core/config.py` и `consumer/app/config.py`).  
+
+## Сценарий: ручка → брокер → consumer
+
+1. Клиент: `POST /api/locations` с телом `{"name": "Таверна", "description": "..."}`.
+2. Сервер возвращает `202 Accepted` и публикует событие в RabbitMQ (очередь `graph.tasks`).
+3. Consumer получает сообщение, создаёт узел в Neo4j и дописывает строку в `exports/events.jsonl`.
+4. Чтение: `GET /api/locations` — сервер читает из Neo4j.
+
+## API (кратко)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | /api/locations | Создать локацию (202, событие в брокер) |
+| GET | /api/locations | Список локаций из графа |
+| GET | /api/locations/{id} | Локация по id |
+| PATCH | /api/locations/{id} | Обновить локацию (202, событие) |
+| POST | /api/characters | Создать персонажа |
+| GET | /api/characters | Список персонажей |
+| POST | /api/story/scenes | Создать сцену (location_id, character_ids) |
+| GET | /api/story/scenes | Список сцен |
+| POST | /api/concepts | Создать понятие |
+| GET | /api/search?q=... | Поиск по графу |
+| POST | /api/llm/answer | Заглушка под LLM (question, role) |
+
+## Метрики
+
+- `GET /metrics` — Prometheus scrape.
+- Метрики: `http_server_requests_total`, `http_server_request_duration_seconds`, `events_published_total`, `neo4j_queries_total`.
+
+## Хранение в Git
+
+Consumer пишет события в volume `exports/` в файл `events.jsonl` (каждая строка — JSON события). Чтобы хранить в Git:
+
+1. Примонтировать этот volume в директорию репозитория на хосте (или скопировать `exports/` в репо).
+2. Настроить cron/скрипт на хосте: `git add exports/ && git commit -m "Export" && git push`.
+
+Либо использовать отдельный сервис, который периодически дергает API и сохраняет дамп в файлы в репо.
+
+## Тесты и CI
+
+- **Сервер**: из каталога `server` с `PYTHONPATH=.:..` (или из корня с `PYTHONPATH=server:shared`).
+- **Consumer**: из каталога `consumer` с `PYTHONPATH=.:..`.
+
+```bash
+# Сервер
+cd server && pip install -r requirements.txt -r requirements-dev.txt
+PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=90
+
+# Consumer
+cd consumer && pip install -r requirements.txt pytest pytest-cov
+PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=90
+```
+
+CI (GitHub Actions) запускает тесты для server и consumer; в логе job выводится отчёт покрытия (`--cov-report=term-missing`), порог 90% (`--cov-fail-under=90`).
+
+## Структура проекта
+
+```
+winm/
+├── docker-compose.yml   # server, consumer, neo4j, rabbitmq, prometheus
+├── .github/workflows/ci.yml
+├── shared/events.py     # типы событий
+├── prometheus/prometheus.yml
+├── server/              # FastAPI, API, метрики
+├── consumer/             # RabbitMQ consumer, запись в Neo4j, экспорт
+└── README.md
+```
