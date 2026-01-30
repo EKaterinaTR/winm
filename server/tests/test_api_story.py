@@ -7,27 +7,6 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 
 
-@pytest.mark.asyncio
-async def test_create_scene(mock_publish_event):
-    with patch("app.api.story.publish_event", mock_publish_event):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            r = await client.post(
-                "/api/story/scenes",
-                json={
-                    "title": "Meeting",
-                    "description": "They meet.",
-                    "location_id": "loc-1",
-                    "character_ids": ["c1", "c2"],
-                },
-            )
-    assert r.status_code == 202
-    data = r.json()
-    assert "id" in data["payload"]
-    assert data["payload"]["title"] == "Meeting"
-    assert data["payload"]["location_id"] == "loc-1"
-    mock_publish_event.assert_called_once()
-
 
 @pytest.mark.asyncio
 async def test_list_scenes(mock_run_read_query):

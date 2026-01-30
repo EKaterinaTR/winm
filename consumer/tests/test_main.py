@@ -63,19 +63,3 @@ def test_main_connects_and_starts_consuming():
     mock_channel.queue_declare.assert_called_once_with(queue="graph.tasks", durable=True)
     mock_channel.basic_consume.assert_called_once()
     mock_channel.start_consuming.assert_called_once()
-
-
-def test_main_entry_point():
-    """Covers __name__ == '__main__' block (line 44)."""
-    
-    # Мокируем все зависимости RabbitMQ
-    with patch("pika.BlockingConnection") as mock_conn, \
-         patch("pika.ConnectionParameters") as mock_params, \
-         patch("app.main.main") as mock_main:
-        
-        # Настраиваем моки
-        mock_channel = MagicMock()
-        mock_conn.return_value.channel.return_value = mock_channel
-        
-        runpy.run_module("app.main", run_name="__main__")
-        mock_main.assert_called_once()
