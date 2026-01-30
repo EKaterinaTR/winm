@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch, MagicMock
 
 import pytest
+import runpy
 
 from app.main import on_message
 
@@ -66,8 +67,15 @@ def test_main_connects_and_starts_consuming():
 
 def test_main_entry_point():
     """Covers __name__ == '__main__' block (line 44)."""
-    import runpy
-
-    with patch("app.main.main") as mock_main:
+    
+    # Мокируем все зависимости RabbitMQ
+    with patch("pika.BlockingConnection") as mock_conn, \
+         patch("pika.ConnectionParameters") as mock_params, \
+         patch("app.main.main") as mock_main:
+        
+        # Настраиваем моки
+        mock_channel = MagicMock()
+        mock_conn.return_value.channel.return_value = mock_channel
+        
         runpy.run_module("app.main", run_name="__main__")
-    mock_main.assert_called_once()
+        mock_main.assert_called_once()
