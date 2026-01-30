@@ -116,6 +116,20 @@ def test_handle_character_update(tmp_path):
             mock_update.assert_called_once()
 
 
+def test_handle_character_update_with_name_normalizes(tmp_path):
+    """Covers handlers line 39: CHARACTER_UPDATE with 'name' in payload."""
+    with patch("app.handlers.settings") as mock_settings:
+        mock_settings.export_dir = str(tmp_path)
+        with patch("app.handlers.update_character") as mock_update:
+            handle_event(
+                EventType.CHARACTER_UPDATE.value,
+                {"id": "c1", "name": "  Alice  ", "description": "Hero"},
+            )
+            mock_update.assert_called_once()
+            call_payload = mock_update.call_args[0][0]
+            assert call_payload["name"] == "Alice"
+
+
 def test_handle_scene_update(tmp_path):
     with patch("app.handlers.settings") as mock_settings:
         mock_settings.export_dir = str(tmp_path)
@@ -132,6 +146,34 @@ def test_handle_concept_update(tmp_path):
             mock_update.return_value = "concept-1"
             handle_event(EventType.CONCEPT_UPDATE.value, {"id": "concept-1", "description": "Updated"})
             mock_update.assert_called_once()
+
+
+def test_handle_concept_update_with_name_normalizes(tmp_path):
+    """Covers handlers line 53: CONCEPT_UPDATE with 'name' in payload."""
+    with patch("app.handlers.settings") as mock_settings:
+        mock_settings.export_dir = str(tmp_path)
+        with patch("app.handlers.update_concept") as mock_update:
+            handle_event(
+                EventType.CONCEPT_UPDATE.value,
+                {"id": "concept-1", "name": "  Magic  ", "description": "Updated"},
+            )
+            mock_update.assert_called_once()
+            call_payload = mock_update.call_args[0][0]
+            assert call_payload["name"] == "Magic"
+
+
+def test_handle_scene_update_with_title_normalizes(tmp_path):
+    """Covers handlers: SCENE_UPDATE with 'title' in payload."""
+    with patch("app.handlers.settings") as mock_settings:
+        mock_settings.export_dir = str(tmp_path)
+        with patch("app.handlers.update_scene") as mock_update:
+            handle_event(
+                EventType.SCENE_UPDATE.value,
+                {"id": "s1", "title": "  Updated Title  "},
+            )
+            mock_update.assert_called_once()
+            call_payload = mock_update.call_args[0][0]
+            assert call_payload["title"] == "Updated Title"
 
 
 def test_handle_unknown_event():

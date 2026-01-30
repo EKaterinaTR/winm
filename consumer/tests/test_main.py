@@ -44,3 +44,30 @@ def test_on_message_handle_raises():
     with patch("app.main.handle_event", side_effect=ValueError("err")):
         on_message(channel, method, properties=None, body=body.encode())
     channel.basic_nack.assert_called_once_with(delivery_tag=1, requeue=False)
+
+
+def test_main_connects_and_starts_consuming():
+    """Covers main() lines 34-40: connect to RabbitMQ and start consuming."""
+    from app.main import main
+
+    mock_channel = MagicMock()
+    mock_channel.start_consuming.return_value = None
+    mock_connection = MagicMock()
+    mock_connection.channel.return_value = mock_channel
+
+    with patch("app.main.pika.URLParameters"):
+        with patch("app.main.pika.BlockingConnection", return_value=mock_connection):
+            main()
+    mock_connection.channel.assert_called_once()
+    mock_channel.queue_declare.assert_called_once_with(queue="graph.tasks", durable=True)
+    mock_channel.basic_consume.assert_called_once()
+    mock_channel.start_consuming.assert_called_once()
+
+
+def test_main_entry_point():
+    """Covers __name__ == '__main__' block (line 44)."""
+    import runpy
+
+    with patch("app.main.main") as mock_main:
+        runpy.run_module("app.main", run_name="__main__")
+    mock_main.assert_called_once()

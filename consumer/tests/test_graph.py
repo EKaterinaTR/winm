@@ -3,8 +3,10 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
+from app import graph as graph_module
 from app.graph import (
     ensure_id,
+    get_driver,
     create_location,
     update_location,
     create_character,
@@ -51,6 +53,32 @@ def test_update_location(mock_get_driver):
 
 
 @patch("app.graph.get_driver")
+def test_update_location_with_description_only(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_location({"id": "loc-1", "description": "New description"})
+    assert uid == "loc-1"
+    mock_session.run.assert_called_once()
+    params = mock_session.run.call_args[0][1]
+    assert params.get("description") == "New description"
+
+
+@patch("app.graph.get_driver")
+def test_update_location_with_name_and_description(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_location({"id": "loc-1", "name": "Tavern", "description": "A tavern"})
+    assert uid == "loc-1"
+    assert mock_session.run.call_count >= 1
+
+
+@patch("app.graph.get_driver")
 def test_create_character(mock_get_driver):
     mock_session = MagicMock()
     mock_driver = MagicMock()
@@ -79,6 +107,26 @@ def test_create_scene(mock_get_driver):
 
 
 @patch("app.graph.get_driver")
+def test_create_scene_with_multiple_characters(mock_get_driver):
+    """Covers run_write inside character_ids loop (line ~110)."""
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = create_scene({
+        "id": "s1",
+        "title": "Meet",
+        "description": "",
+        "location_id": "loc-1",
+        "character_ids": ["c1", "c2"],
+    })
+    assert uid == "s1"
+    # First run_write for MERGE Scene, then one per character for FEATURES
+    assert mock_session.run.call_count >= 3
+
+
+@patch("app.graph.get_driver")
 def test_create_concept(mock_get_driver):
     mock_session = MagicMock()
     mock_driver = MagicMock()
@@ -101,6 +149,30 @@ def test_update_character(mock_get_driver):
 
 
 @patch("app.graph.get_driver")
+def test_update_character_with_description_only(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_character({"id": "c1", "description": "Hero"})
+    assert uid == "c1"
+    mock_session.run.assert_called_once()
+
+
+@patch("app.graph.get_driver")
+def test_update_character_with_name_and_description(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_character({"id": "c1", "name": "Alice", "description": "Hero"})
+    assert uid == "c1"
+    mock_session.run.assert_called_once()
+
+
+@patch("app.graph.get_driver")
 def test_update_scene(mock_get_driver):
     mock_session = MagicMock()
     mock_driver = MagicMock()
@@ -112,6 +184,42 @@ def test_update_scene(mock_get_driver):
 
 
 @patch("app.graph.get_driver")
+def test_update_scene_with_title_and_description(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_scene({"id": "s1", "title": "New", "description": "Desc"})
+    assert uid == "s1"
+    mock_session.run.assert_called()
+
+
+@patch("app.graph.get_driver")
+def test_update_scene_with_location_id(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_scene({"id": "s1", "location_id": "loc-2"})
+    assert uid == "s1"
+    assert mock_session.run.call_count >= 1
+
+
+@patch("app.graph.get_driver")
+def test_update_scene_with_character_ids(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_scene({"id": "s1", "character_ids": ["c1", "c2"]})
+    assert uid == "s1"
+    assert mock_session.run.call_count >= 2
+
+
+@patch("app.graph.get_driver")
 def test_update_concept(mock_get_driver):
     mock_session = MagicMock()
     mock_driver = MagicMock()
@@ -120,3 +228,29 @@ def test_update_concept(mock_get_driver):
     mock_get_driver.return_value = mock_driver
     uid = update_concept({"id": "concept-1", "description": "Updated"})
     assert uid == "concept-1"
+
+
+@patch("app.graph.get_driver")
+def test_update_concept_with_name_and_description(mock_get_driver):
+    mock_session = MagicMock()
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__ = lambda self: mock_session
+    mock_driver.session.return_value.__exit__ = lambda *a: None
+    mock_get_driver.return_value = mock_driver
+    uid = update_concept({"id": "concept-1", "name": "Magic", "description": "Updated"})
+    assert uid == "concept-1"
+    mock_session.run.assert_called_once()
+
+
+@patch("app.graph.GraphDatabase")
+def test_get_driver_creates_driver(mock_graph_db):
+    """Covers get_driver when _driver is None (lines 15-20)."""
+    mock_driver = MagicMock()
+    mock_graph_db.driver.return_value = mock_driver
+    graph_module._driver = None
+    try:
+        driver = get_driver()
+        assert driver is mock_driver
+        mock_graph_db.driver.assert_called_once()
+    finally:
+        graph_module._driver = None
