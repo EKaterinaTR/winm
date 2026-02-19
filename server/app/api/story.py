@@ -82,7 +82,7 @@ async def get_scene(scene_id: str) -> SceneRead:
 
 
 @router.patch("/scenes/{scene_id}", status_code=202)
-def update_scene(scene_id: str, body: SceneUpdate) -> dict:
+async def update_scene(scene_id: str, body: SceneUpdate) -> dict:
     """Update scene (publish event)."""
     payload = {"id": scene_id}
     if body.title is not None:

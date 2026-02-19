@@ -35,56 +35,79 @@ def ensure_id(payload: dict) -> str:
     return str(uuid.uuid4())
 
 
+# --- Base node writer (Location, Character, Concept: id, name, description) ---
+
+
+class NameNodeWriter:
+    """Base class for graph nodes with id, name, description."""
+
+    label: str = ""
+
+    def create(self, payload: dict) -> str:
+        uid = ensure_id(payload)
+        run_write(
+            f"MERGE (n:{self.label} {{id: $id}}) SET n.name = $name, n.description = $description",
+            {"id": uid, "name": payload.get("name", ""), "description": payload.get("description", "")},
+        )
+        return uid
+
+    def update(self, payload: dict) -> str:
+        uid = payload["id"]
+        updates = []
+        params = {"id": uid}
+        if "name" in payload:
+            updates.append("n.name = $name")
+            params["name"] = payload["name"]
+        if "description" in payload:
+            updates.append("n.description = $description")
+            params["description"] = payload["description"]
+        if updates:
+            run_write(f"MATCH (n:{self.label} {{id: $id}}) SET {', '.join(updates)}", params)
+        return uid
+
+
+class LocationWriter(NameNodeWriter):
+    label = "Location"
+
+
+class CharacterWriter(NameNodeWriter):
+    label = "Character"
+
+
+class ConceptWriter(NameNodeWriter):
+    label = "Concept"
+
+
+_location_writer = LocationWriter()
+_character_writer = CharacterWriter()
+_concept_writer = ConceptWriter()
+
+
 def create_location(payload: dict) -> str:
-    """Create Location node. Returns id."""
-    uid = ensure_id(payload)
-    run_write(
-        "MERGE (n:Location {id: $id}) SET n.name = $name, n.description = $description",
-        {"id": uid, "name": payload.get("name", ""), "description": payload.get("description", "")},
-    )
-    return uid
+    return _location_writer.create(payload)
 
 
 def update_location(payload: dict) -> str:
-    """Update Location node. Returns id."""
-    uid = payload["id"]
-    updates = []
-    params = {"id": uid}
-    if "name" in payload:
-        updates.append("n.name = $name")
-        params["name"] = payload["name"]
-    if "description" in payload:
-        updates.append("n.description = $description")
-        params["description"] = payload["description"]
-    if updates:
-        run_write(f"MATCH (n:Location {{id: $id}}) SET {', '.join(updates)}", params)
-    return uid
+    return _location_writer.update(payload)
 
 
 def create_character(payload: dict) -> str:
-    """Create Character node. Returns id."""
-    uid = ensure_id(payload)
-    run_write(
-        "MERGE (n:Character {id: $id}) SET n.name = $name, n.description = $description",
-        {"id": uid, "name": payload.get("name", ""), "description": payload.get("description", "")},
-    )
-    return uid
+    return _character_writer.create(payload)
 
 
 def update_character(payload: dict) -> str:
-    """Update Character node. Returns id."""
-    uid = payload["id"]
-    updates = []
-    params = {"id": uid}
-    if "name" in payload:
-        updates.append("n.name = $name")
-        params["name"] = payload["name"]
-    if "description" in payload:
-        updates.append("n.description = $description")
-        params["description"] = payload["description"]
-    if updates:
-        run_write(f"MATCH (n:Character {{id: $id}}) SET {', '.join(updates)}", params)
-    return uid
+    return _character_writer.update(payload)
+
+
+def create_concept(payload: dict) -> str:
+    return _concept_writer.create(payload)
+
+
+def update_concept(payload: dict) -> str:
+    return _concept_writer.update(payload)
+
+
+# --- Scene (custom logic: relationships) ---
 
 
 def create_scene(payload: dict) -> str:
@@ -157,30 +180,4 @@ def update_scene(payload: dict) -> str:
                 """,
                 {"scene_id": uid, "char_id": cid},
             )
-    return uid
-
-
-def create_concept(payload: dict) -> str:
-    """Create Concept node. Returns id."""
-    uid = ensure_id(payload)
-    run_write(
-        "MERGE (n:Concept {id: $id}) SET n.name = $name, n.description = $description",
-        {"id": uid, "name": payload.get("name", ""), "description": payload.get("description", "")},
-    )
-    return uid
-
-
-def update_concept(payload: dict) -> str:
-    """Update Concept node. Returns id."""
-    uid = payload["id"]
-    updates = []
-    params = {"id": uid}
-    if "name" in payload:
-        updates.append("n.name = $name")
-        params["name"] = payload["name"]
-    if "description" in payload:
-        updates.append("n.description = $description")
-        params["description"] = payload["description"]
-    if updates:
-        run_write(f"MATCH (n:Concept {{id: $id}}) SET {', '.join(updates)}", params)
     return uid

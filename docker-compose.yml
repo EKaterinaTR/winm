@@ -42,14 +42,11 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      EXPORT_DIR: /app/exports
     depends_on:
       neo4j:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    volumes:
-      - git_export:/app/exports
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s

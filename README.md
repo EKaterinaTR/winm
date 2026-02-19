@@ -123,12 +123,19 @@ PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-u
 
 CI (GitHub Actions) запускает тесты для server и consumer; в логе job выводится отчёт покрытия (`--cov-report=term-missing`), порог 90% (`--cov-fail-under=90`).
 
+## Для агентов и Cursor
+
+- **AGENTS.md** — краткие инструкции для AI-агента (структура, соглашения, тесты).
+- **.cursor/rules/** — правила Cursor: архитектура (always apply), тесты (при работе с `tests/`).
+
 ## Структура проекта
 
 ```
 winm/
 ├── docker-compose.yml   # server, consumer, neo4j, rabbitmq, prometheus
 ├── .github/workflows/ci.yml
+├── AGENTS.md            # инструкции для агента
+├── .cursor/rules/       # правила Cursor (архитектура, тесты)
 ├── shared/events.py     # типы событий
 ├── prometheus/prometheus.yml
 ├── server/              # FastAPI, API, метрики
