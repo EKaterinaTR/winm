@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: winm-server
+  namespace: winm
+  labels:
+    app: winm-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: winm-server

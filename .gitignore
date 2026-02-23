@@ -1,19 +1,32 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
 .venv/
 venv/
 *.egg-info/
+*.egg
 .pytest_cache/
 .coverage
 htmlcov/
+*.manifest
 
 # IDE / editor
 .cursor/
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
 
 # Env (секреты — не коммитить)
 .env
 .env.local
+.env.*.local
+
+# K8s (заполненный секрет не коммитить)
+k8s/secret.yaml
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: winm-consumer
+  namespace: winm
+  labels:
+    app: winm-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: winm-consumer
+  template:
+    metadata:
+      labels:
+        app: winm-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: winm-consumer:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NEO4J_URI
+              value: "bolt://neo4j:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: winm-secrets
+                  key: neo4j-password
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: winm-secrets
+                  key: rabbitmq-url
+            - name: EXPORT_DIR
+              value: "/app/exports"
+          volumeMounts:
+            - name: exports
+              mountPath: /app/exports
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: exports
+          emptyDir: {}
+---
+# Для сохранения экспорта между рестартами заменить emptyDir на PVC.

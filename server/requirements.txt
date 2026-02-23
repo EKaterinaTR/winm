@@ -6,3 +6,4 @@ prometheus-client>=0.19
 pydantic>=2.5
 pydantic-settings>=2.1
 httpx>=0.26
+gigachat>=0.2.0
