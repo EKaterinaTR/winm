@@ -1,0 +1,18 @@
+# Эксперимент Chaos Mesh: убийство одного пода winm-consumer
+# Требования: Chaos Mesh установлен в кластере (namespace chaos-mesh).
+# Применить: kubectl apply -f chaos/pod-kill-consumer.yaml
+# Удалить: kubectl delete -f chaos/pod-kill-consumer.yaml
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: winm-consumer-pod-kill
+  namespace: chaos-mesh
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - winm
+    labelSelectors:
+      app: winm-consumer

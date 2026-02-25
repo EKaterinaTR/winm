@@ -1,0 +1,16 @@
+{{- if and .Values.rabbitmq.enabled .Values.rabbitmq.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-data
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: rabbitmq
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.rabbitmq.persistence.size }}
+{{- end }}

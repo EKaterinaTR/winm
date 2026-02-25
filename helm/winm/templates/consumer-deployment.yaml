@@ -1,0 +1,59 @@
+{{- if .Values.consumer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: winm-consumer
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: winm-consumer
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.consumer.replicaCount }}
+  selector:
+    matchLabels:
+      app: winm-consumer
+  template:
+    metadata:
+      labels:
+        app: winm-consumer
+        {{- include "winm.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.rbac.enabled }}
+      serviceAccountName: winm-consumer
+      {{- end }}
+      containers:
+        - name: consumer
+          image: {{ include "winm.consumer.image" . }}
+          imagePullPolicy: {{ .Values.consumer.image.pullPolicy }}
+          env:
+            - name: NEO4J_URI
+              value: {{ .Values.server.neo4j.uri | quote }}
+            - name: NEO4J_USER
+              value: {{ .Values.server.neo4j.user | quote }}
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: neo4j-password
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: rabbitmq-url
+            - name: EXPORT_DIR
+              value: {{ .Values.consumer.exportDir | quote }}
+          volumeMounts:
+            - name: exports
+              mountPath: {{ .Values.consumer.exportDir }}
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
+          {{- if .Values.consumer.probes }}
+          livenessProbe:
+            {{- toYaml .Values.consumer.probes.liveness | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.consumer.probes.readiness | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: exports
+          emptyDir: {}
+{{- end }}

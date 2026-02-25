@@ -1,0 +1,37 @@
+# ArgoCD Application: деплой WinM из Git (Helm).
+# Установка ArgoCD: https://argo-cd.readthedocs.io/en/stable/getting_started/
+# После установки: замените REPO_URL на URL вашего репозитория и примените:
+#   kubectl apply -f argocd/application.yaml
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: winm
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/winm.git  # заменить на ваш репозиторий
+    targetRevision: HEAD                          # или main, master, k8s, тег
+    path: helm/winm
+    helm:
+      valueFiles:
+        - values.yaml
+      # Переопределение образа из registry (заполняется вручную или CI обновляет values)
+      # parameters:
+      #   - name: global.imageRegistry
+      #     value: "ghcr.io/YOUR_ORG"
+      #   - name: server.image.tag
+      #     value: "abc1234"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: winm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -8,7 +8,9 @@ REST API для поиска. Хранение в Neo4j и экспорт в ф�
 
 - **Сервер**: Python, FastAPI, Neo4j (чтение), RabbitMQ (публикация событий), Prometheus (метрики)
 - **Consumer**: Python, RabbitMQ (обработка очереди), Neo4j (запись), экспорт в JSONL
+- **LLM-сервис (GigaChat)**: отдельный микросервис `llm-service` — FastAPI, один эндпоинт `/chat`; сервер вызывает его по HTTP при запросах к `/api/llm/answer`
 - **Инфраструктура**: Docker Compose (Neo4j, RabbitMQ, Prometheus)
+- **Kubernetes**: Helm-чарт в `helm/winm` (server, consumer, llm-service, HPA, RBAC), GitOps через ArgoCD (`argocd/`), CI собирает образы (в т.ч. winm-llm) и пушит в GHCR. Chaos Engineering: эксперименты в `chaos/` (Chaos Mesh).
 
 ## Локальный запуск
 
@@ -135,12 +137,15 @@ CI (GitHub Actions) запускает тесты для server и consumer; в 
 ```
 winm/
 ├── docker-compose.yml   # server, consumer, neo4j, rabbitmq, prometheus
-├── .github/workflows/ci.yml
-├── AGENTS.md            # инструкции для агента
-├── .cursor/rules/       # правила Cursor (архитектура, тесты)
-├── shared/events.py     # типы событий
-├── prometheus/prometheus.yml
-├── server/              # FastAPI, API, метрики
-├── consumer/             # RabbitMQ consumer, запись в Neo4j, экспорт
+├── .github/workflows/ci.yml   # тесты + сборка образов и пуш в GHCR
+├── helm/winm/           # Helm-чарт (Chart.yaml, values.yaml, templates/)
+├── argocd/              # GitOps: Application для ArgoCD
+├── k8s/                 # сырые манифесты (альтернатива Helm)
+├── AGENTS.md
+├── .cursor/rules/
+├── shared/
+├── prometheus/
+├── server/
+├── consumer/
 └── README.md
 ```
