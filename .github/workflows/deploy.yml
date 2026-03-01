@@ -1,0 +1,50 @@
+# Деплой в Kubernetes после успешной сборки образов.
+# Требуется: в GitHub Settings → Secrets and variables → Actions добавлен секрет KUBECONFIG
+# (содержимое kubeconfig для доступа к кластеру). Секрет winm-secrets в namespace winm должен существовать.
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main, master]
+
+jobs:
+  deploy:
+    if: workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo '${{ secrets.KUBECONFIG }}' > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Extract short SHA and image owner
+        id: meta
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "image_owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Deploy with Helm
+        env:
+          REGISTRY: ghcr.io
+        run: |
+          helm upgrade --install winm ./helm/winm -n winm --create-namespace \
+            --set global.imageRegistry=${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }} \
+            --set server.image.repository=winm-server \
+            --set server.image.tag=${{ steps.meta.outputs.sha_short }} \
+            --set consumer.image.repository=winm-consumer \
+            --set consumer.image.tag=${{ steps.meta.outputs.sha_short }} \
+            --set llm.image.repository=winm-llm \
+            --set llm.image.tag=${{ steps.meta.outputs.sha_short }}
