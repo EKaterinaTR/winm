@@ -75,6 +75,7 @@ jobs:
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "ref=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          echo "image_owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Build and push winm-server
         uses: docker/build-push-action@v6
@@ -83,8 +84,8 @@ jobs:
           file: server/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-server:${{ steps.meta.outputs.sha_short }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-server:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-server:${{ steps.meta.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-server:latest
 
       - name: Build and push winm-consumer
         uses: docker/build-push-action@v6
@@ -93,8 +94,8 @@ jobs:
           file: consumer/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-consumer:${{ steps.meta.outputs.sha_short }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-consumer:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-consumer:${{ steps.meta.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-consumer:latest
 
       - name: Build and push winm-llm
         uses: docker/build-push-action@v6
@@ -103,5 +104,5 @@ jobs:
           file: llm-service/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-llm:${{ steps.meta.outputs.sha_short }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/winm-llm:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-llm:${{ steps.meta.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/winm-llm:latest
