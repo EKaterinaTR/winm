@@ -153,6 +153,7 @@ CI (GitHub Actions) запускает тесты для server и consumer; в 
 ## Структура проекта
 
 ```
+
 winm/
 ├── docker-compose.yml   # server, consumer, neo4j, rabbitmq, prometheus
 ├── .github/workflows/ci.yml   # тесты + сборка образов и пуш в GHCR
