@@ -5,7 +5,7 @@ from app.models.schemas import (
     SceneCreate,
     SearchResult,
     LLMAnswerRequest,
-    LLMAnswerResponse,
+    LLMResultAnswer,
 )
 
 
@@ -37,6 +37,7 @@ def test_llm_answer_request():
     assert m.role == "narrator"
 
 
-def test_llm_answer_response():
-    m = LLMAnswerResponse(answer="Stub", role="narrator")
+def test_llm_result_answer():
+    m = LLMResultAnswer(request_id="r1", answer="Stub", role="narrator")
     assert m.answer == "Stub"
+    assert m.request_id == "r1"

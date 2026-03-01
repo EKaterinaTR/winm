@@ -1,60 +1,86 @@
-"""LLM answer API: context from graph + GigaChat (via LLM service or stub)."""
-import asyncio
-from fastapi import APIRouter
-import httpx
+"""LLM API: запросы в очередь llm.tasks, результат по GET /api/llm/result/:request_id."""
+import uuid
 
-from app.core.config import settings
-from app.models.schemas import LLMAnswerRequest, LLMAnswerResponse
-from app.services.llm_context import get_llm_context
+from fastapi import APIRouter, HTTPException
+
+from app.core.broker import publish_llm_task
+from app.llm_results import get_result, start_llm_results_consumer
+from app.models.schemas import (
+    LLMAnswerRequest,
+    LLMGenerateRequest,
+    LLMTaskAccepted,
+    LLMResultPending,
+    LLMResultAnswer,
+    LLMResultGenerate,
+    LLMResultError,
+)
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
 
-async def _call_llm_service(prompt: str, system: str | None = None) -> str:
-    """Call LLM microservice POST /chat. Returns answer text or raises."""
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.post(
-            f"{settings.llm_service_url.rstrip('/')}/chat",
-            json={"prompt": prompt, "system": system},
-        )
-        r.raise_for_status()
-        data = r.json()
-        return data.get("answer", "") or ""
-
-
-def _call_gigachat_local(prompt: str) -> str:
-    """Sync GigaChat call (run in thread). Used when llm_service_url is not set."""
-    from gigachat import GigaChat
-    with GigaChat(credentials=settings.gigachat_credentials) as giga:
-        response = giga.chat(prompt)
-        return (response.choices[0].message.content if response.choices else "") or ""
-
-
-@router.post("/answer", response_model=LLMAnswerResponse)
-async def answer_by_role(body: LLMAnswerRequest) -> LLMAnswerResponse:
+@router.post("/answer", status_code=202, response_model=LLMTaskAccepted)
+def answer_task(body: LLMAnswerRequest) -> LLMTaskAccepted:
     """
-    Answer question in role: fetch context from graph, call GigaChat (via LLM service or local), return answer.
-    If LLM_SERVICE_URL is set, calls the LLM microservice; else if GIGACHAT_CREDENTIALS is set, calls GigaChat in-process; else stub.
+    Вопрос по базе знаний. Запрос ставится в очередь; ответ не моментальный.
+    Получить результат: GET /api/llm/result/{request_id}.
     """
-    role = (body.role or "").strip() or "narrator"
-    context = await get_llm_context(body.role)
+    request_id = str(uuid.uuid4())
+    payload = {
+        "request_id": request_id,
+        "type": "knowledge",
+        "question": body.question,
+        "role": body.role or "narrator",
+    }
+    publish_llm_task(payload)
+    return LLMTaskAccepted(request_id=request_id)
 
-    if not settings.llm_service_url and not settings.gigachat_credentials:
-        return LLMAnswerResponse(
-            answer=f"[LLM не настроен] Вопрос: {body.question}. Роль: {role}. "
-                   "Задайте GIGACHAT_CREDENTIALS или LLM_SERVICE_URL для вызова GigaChat.",
-            role=role,
+
+@router.post("/generate", status_code=202, response_model=LLMTaskAccepted)
+def generate_task(body: LLMGenerateRequest) -> LLMTaskAccepted:
+    """
+    Генерация локации/персонажа/понятия/сцены. Не сохраняется в БД.
+    Ответ — payload для POST создания. Результат: GET /api/llm/result/{request_id}.
+    """
+    request_id = str(uuid.uuid4())
+    payload = {
+        "request_id": request_id,
+        "type": "generate",
+        "entity_type": body.entity_type,
+        "prompt": body.prompt,
+    }
+    publish_llm_task(payload)
+    return LLMTaskAccepted(request_id=request_id)
+
+
+@router.get(
+    "/result/{request_id}",
+    response_model=LLMResultPending | LLMResultAnswer | LLMResultGenerate | LLMResultError,
+    status_code=200,
+)
+def get_llm_result(request_id: str):
+    """
+    Результат задачи LLM по request_id из POST /answer или POST /generate.
+    200 — результат готов (answer или generate payload), 200 с status=pending — ещё в обработке.
+    """
+    data = get_result(request_id)
+    if data is None:
+        return LLMResultPending(request_id=request_id)
+
+    if data.get("status") == "error" or data.get("error"):
+        return LLMResultError(
+            request_id=request_id,
+            error=data.get("error", "Unknown error"),
         )
-
-    if role.lower() == "narrator":
-        system = "Ты рассказчик визуальной новеллы. Отвечай кратко, в стиле повествования."
-    else:
-        system = f"Ты отвечаешь от лица персонажа. Контекст персонажа из базы знаний: {context}"
-
-    prompt = f"Контекст из графа: {context}\n\nВопрос: {body.question}\n\nОтвет:"
-    if settings.llm_service_url:
-        answer = await _call_llm_service(prompt, system=system)
-    else:
-        full_prompt = f"{system}\n\n{prompt}"
-        answer = await asyncio.to_thread(_call_gigachat_local, full_prompt)
-    return LLMAnswerResponse(answer=answer or "(пустой ответ модели)", role=role)
+    if data.get("type") == "knowledge":
+        return LLMResultAnswer(
+            request_id=request_id,
+            answer=data.get("answer", ""),
+            role=data.get("role"),
+        )
+    if data.get("type") == "generate":
+        return LLMResultGenerate(
+            request_id=request_id,
+            entity_type=data["entity_type"],
+            payload=data.get("payload", {}),
+        )
+    return LLMResultError(request_id=request_id, error="Unknown result type")

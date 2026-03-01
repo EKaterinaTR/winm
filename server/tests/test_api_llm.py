@@ -1,6 +1,6 @@
-"""Tests for LLM API (stub when no credentials, GigaChat when configured)."""
+"""Tests for LLM API: 202 + request_id, GET /result/:id."""
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 from httpx import ASGITransport, AsyncClient
 
@@ -8,87 +8,102 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_llm_answer_no_credentials(mock_run_read_query):
-    """Without GIGACHAT_CREDENTIALS returns stub message."""
-    mock_run_read_query.return_value = [{"type": "Location", "name": "Tavern"}]
-    with patch("app.services.llm_context.run_read_query", mock_run_read_query):
-        with patch("app.api.llm.settings") as mock_settings:
-            mock_settings.gigachat_credentials = None
-            mock_settings.llm_service_url = None
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                r = await client.post(
-                    "/api/llm/answer",
-                    json={"question": "What happened?", "role": "narrator"},
-                )
-    assert r.status_code == 200
+async def test_llm_answer_returns_202_and_request_id():
+    """POST /api/llm/answer returns 202 with request_id (task in queue)."""
+    with patch("app.api.llm.publish_llm_task"):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post(
+                "/api/llm/answer",
+                json={"question": "What happened?", "role": "narrator"},
+            )
+    assert r.status_code == 202
     data = r.json()
-    assert "answer" in data
-    assert "LLM не настроен" in data["answer"]
-    assert data["role"] == "narrator"
+    assert "request_id" in data
+    assert len(data["request_id"]) > 0
 
 
 @pytest.mark.asyncio
-async def test_llm_answer_with_gigachat(mock_run_read_query):
-    """With credentials and mocked GigaChat returns model answer."""
-    mock_run_read_query.return_value = [{"type": "Character", "name": "Hero"}]
-    with patch("app.services.llm_context.run_read_query", mock_run_read_query):
-        with patch("app.api.llm.settings") as mock_settings:
-            mock_settings.gigachat_credentials = "test-key"
-            mock_settings.llm_service_url = None
-            with patch("app.api.llm._call_gigachat_local", return_value="Mocked GigaChat reply"):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    r = await client.post(
-                        "/api/llm/answer",
-                        json={"question": "Кто ты?", "role": "narrator"},
-                    )
-    assert r.status_code == 200
+async def test_llm_generate_returns_202_and_request_id():
+    """POST /api/llm/generate returns 202 with request_id."""
+    with patch("app.api.llm.publish_llm_task"):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post(
+                "/api/llm/generate",
+                json={"entity_type": "location", "prompt": "таверна"},
+            )
+    assert r.status_code == 202
     data = r.json()
-    assert data["answer"] == "Mocked GigaChat reply"
-    assert data["role"] == "narrator"
+    assert "request_id" in data
 
 
 @pytest.mark.asyncio
-async def test_llm_answer_via_llm_service(mock_run_read_query):
-    """When LLM_SERVICE_URL is set, calls LLM service and returns its answer."""
-    mock_run_read_query.return_value = [{"type": "Character", "name": "Hero"}]
-    with patch("app.services.llm_context.run_read_query", mock_run_read_query):
-        with patch("app.api.llm.settings") as mock_settings:
-            mock_settings.gigachat_credentials = None
-            mock_settings.llm_service_url = "http://llm:8001"
-            with patch("app.api.llm._call_llm_service", new_callable=AsyncMock, return_value="Reply from LLM service"):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    r = await client.post(
-                        "/api/llm/answer",
-                        json={"question": "Кто ты?", "role": "narrator"},
-                    )
+async def test_llm_result_pending():
+    """GET /api/llm/result/:id returns pending when no result yet."""
+    with patch("app.api.llm.get_result", return_value=None):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.get("/api/llm/result/some-uuid")
     assert r.status_code == 200
     data = r.json()
-    assert data["answer"] == "Reply from LLM service"
-    assert data["role"] == "narrator"
+    assert data["status"] == "pending"
+    assert data["request_id"] == "some-uuid"
 
 
 @pytest.mark.asyncio
-async def test_llm_answer_character_role(mock_run_read_query):
-    """Character role: context from graph (mocked), stub when no credentials."""
-    # First call: character by id; second: scenes
-    mock_run_read_query.side_effect = [
-        [{"name": "Alice", "description": "Main character"}],
-        [],
-    ]
-    with patch("app.services.llm_context.run_read_query", mock_run_read_query):
-        with patch("app.api.llm.settings") as mock_settings:
-            mock_settings.gigachat_credentials = None
-            mock_settings.llm_service_url = None
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                r = await client.post(
-                    "/api/llm/answer",
-                    json={"question": "Where are you?", "role": "char-uuid-123"},
-                )
+async def test_llm_result_done_knowledge():
+    """GET /api/llm/result/:id returns answer when knowledge result ready."""
+    with patch("app.api.llm.get_result", return_value={
+        "request_id": "rid-1",
+        "status": "done",
+        "type": "knowledge",
+        "answer": "Mocked answer",
+        "role": "narrator",
+    }):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.get("/api/llm/result/rid-1")
     assert r.status_code == 200
     data = r.json()
-    assert "answer" in data
-    assert data["role"] == "char-uuid-123"
+    assert data["status"] == "done"
+    assert data["type"] == "knowledge"
+    assert data["answer"] == "Mocked answer"
+
+
+@pytest.mark.asyncio
+async def test_llm_result_done_generate():
+    """GET /api/llm/result/:id returns payload when generate result ready."""
+    with patch("app.api.llm.get_result", return_value={
+        "request_id": "rid-2",
+        "status": "done",
+        "type": "generate",
+        "entity_type": "location",
+        "payload": {"name": "Таверна", "description": "Уютная таверна"},
+    }):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.get("/api/llm/result/rid-2")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "done"
+    assert data["type"] == "generate"
+    assert data["entity_type"] == "location"
+    assert data["payload"]["name"] == "Таверна"
+
+
+@pytest.mark.asyncio
+async def test_llm_result_error():
+    """GET /api/llm/result/:id returns error when task failed."""
+    with patch("app.api.llm.get_result", return_value={
+        "request_id": "rid-3",
+        "status": "error",
+        "error": "LLM timeout",
+    }):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.get("/api/llm/result/rid-3")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "error"
+    assert "timeout" in data["error"].lower()
