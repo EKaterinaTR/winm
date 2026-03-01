@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     neo4j_password: str = "password"
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
     export_dir: str = "./exports"
+    llm_service_url: str = "http://localhost:8001"  # LLM microservice для очереди llm.tasks
 
 
 settings = Settings()

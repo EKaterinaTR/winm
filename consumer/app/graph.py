@@ -28,6 +28,15 @@ def run_write(query: str, parameters: dict[str, Any] | None = None) -> None:
         session.run(query, parameters)
 
 
+def run_read(query: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Execute read Cypher. Returns list of records (dict per row)."""
+    driver = get_driver()
+    parameters = parameters or {}
+    with driver.session() as session:
+        result = session.run(query, parameters)
+        return [dict(record) for record in result]
+
+
 def ensure_id(payload: dict) -> str:
     """Ensure payload has id; generate if missing."""
     if "id" in payload and payload["id"]:
@@ -140,6 +149,27 @@ def create_scene(payload: dict) -> str:
             {"scene_id": uid, "char_id": cid},
         )
     return uid
+
+
+def search_graph(q: str) -> list[dict[str, Any]]:
+    """Поиск по графу (локации, персонажи, сцены, понятия). Как в server search API."""
+    q_norm = (q or "").strip().lower().replace(" ", ".*")
+    pattern = f".*{q_norm}.*" if q_norm else ".*"
+    params = {"pattern": pattern}
+    records = run_read("""
+        MATCH (n)
+        WHERE (n:Location OR n:Character OR n:Scene OR n:Concept)
+        AND (
+            (n.name IS NOT NULL AND toLower(trim(n.name)) =~ $pattern)
+            OR (n.title IS NOT NULL AND toLower(trim(n.title)) =~ $pattern)
+            OR (n.description IS NOT NULL AND toLower(trim(n.description)) =~ $pattern)
+        )
+        RETURN labels(n)[0] AS type, n.id AS id,
+               COALESCE(n.name, n.title, '') AS name,
+               COALESCE(n.description, n.title, '') AS snippet
+        LIMIT 50
+    """, params)
+    return records
 
 
 def update_scene(payload: dict) -> str:

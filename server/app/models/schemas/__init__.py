@@ -4,7 +4,15 @@ from app.models.schemas.character import CharacterCreate, CharacterUpdate, Chara
 from app.models.schemas.concept import ConceptCreate, ConceptUpdate, ConceptRead
 from app.models.schemas.scene import SceneCreate, SceneUpdate, SceneRead
 from app.models.schemas.search import SearchResult
-from app.models.schemas.llm import LLMAnswerRequest, LLMAnswerResponse
+from app.models.schemas.llm import (
+    LLMAnswerRequest,
+    LLMGenerateRequest,
+    LLMTaskAccepted,
+    LLMResultPending,
+    LLMResultAnswer,
+    LLMResultGenerate,
+    LLMResultError,
+)
 from app.models.schemas.auth import TokenRequest, TokenResponse
 
 __all__ = [
@@ -22,7 +30,12 @@ __all__ = [
     "SceneRead",
     "SearchResult",
     "LLMAnswerRequest",
-    "LLMAnswerResponse",
+    "LLMGenerateRequest",
+    "LLMTaskAccepted",
+    "LLMResultPending",
+    "LLMResultAnswer",
+    "LLMResultGenerate",
+    "LLMResultError",
     "TokenRequest",
     "TokenResponse",
 ]

@@ -21,6 +21,14 @@ def override_auth():
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def mock_llm_results_consumer():
+    """Не запускать поток потребления llm.results в тестах."""
+    from unittest.mock import patch
+    with patch("app.main.start_llm_results_consumer"):
+        yield
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

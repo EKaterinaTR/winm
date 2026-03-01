@@ -8,6 +8,7 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from app.api import locations, characters, story, concepts, search, llm, auth
 from app.auth import get_current_user
 from app.core.graph import close_driver
+from app.llm_results import start_llm_results_consumer
 from app.metrics import http_requests_total, http_request_duration_seconds
 
 
@@ -18,6 +19,10 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def shutdown() -> None:
         await close_driver()
+
+    @app.on_event("startup")
+    def startup() -> None:
+        start_llm_results_consumer()
 
     @app.middleware("http")
     async def metrics_middleware(request: Request, call_next):
