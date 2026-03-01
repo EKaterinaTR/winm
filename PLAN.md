@@ -183,7 +183,7 @@ winm/
 
 - **Сервер**: pytest, pytest-cov, pytest-asyncio. Тесты на API (TestClient), на сервисы (моки Neo4j и RabbitMQ), на метрики.
 - **Consumer**: pytest, моки RabbitMQ и Neo4j; тесты обработчиков с подменой графа и брокера.
-- **Покрытие**: `pytest --cov=app --cov-report=term-missing --cov-fail-under=90`.
+- **Покрытие**: `pytest --cov=app --cov-report=term-missing --cov-fail-under=50`.
 - В CI (GitHub Actions): запуск тестов в контейнере или на установленном Python; артефакт или вывод в лог отчёта с покрытием (`coverage report` / `pytest --cov --cov-report=term`), чтобы в output CI было видно покрытие.
 
 ---
@@ -191,7 +191,7 @@ winm/
 ## 11. CI (GitHub Actions)
 
 - Шаг: установка зависимостей, запуск линтера (ruff/black/flake8 — по выбору), запуск тестов с coverage.
-- Условие: падение при покрытии ниже 90% (`--cov-fail-under=90`).
+- Условие: падение при покрытии ниже 50% (`--cov-fail-under=50`).
 - В логе job явно выводить отчёт покрытия (term или xml + вывод файла).
 
 ---

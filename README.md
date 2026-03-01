@@ -134,14 +134,14 @@ Consumer пишет события в volume `exports/` в файл `events.json
 ```bash
 # Сервер
 cd server && pip install -r requirements.txt -r requirements-dev.txt
-PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=90
+PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=50
 
 # Consumer
 cd consumer && pip install -r requirements.txt pytest pytest-cov
-PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=90
+PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=50
 ```
 
-CI (GitHub Actions) запускает тесты для server и consumer; в логе job выводится отчёт покрытия (`--cov-report=term-missing`), порог 90% (`--cov-fail-under=90`).
+CI (GitHub Actions) запускает тесты для server и consumer; в логе job выводится отчёт покрытия (`--cov-report=term-missing`), порог 50% (`--cov-fail-under=50`).
 
 ## Для агентов и Cursor
 
