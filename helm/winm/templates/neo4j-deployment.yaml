@@ -1,0 +1,49 @@
+{{- if .Values.neo4j.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: neo4j
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+        {{- include "winm.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: neo4j
+          image: {{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}
+          imagePullPolicy: {{ .Values.neo4j.image.pullPolicy }}
+          ports:
+            - containerPort: 7687
+              name: bolt
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: neo4j-auth
+          {{- if .Values.neo4j.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+      {{- if .Values.neo4j.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: neo4j-data
+      {{- end }}
+{{- end }}

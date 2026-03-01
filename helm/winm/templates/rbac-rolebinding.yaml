@@ -1,0 +1,62 @@
+{{- if .Values.rbac.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: winm-app
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "winm.labels" . | nindent 4 }}
+rules:
+  # Минимальные права: чтение подов в своём namespace (для метрик/отладки)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: winm-server
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "winm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: winm-app
+subjects:
+  - kind: ServiceAccount
+    name: winm-server
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: winm-consumer
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "winm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: winm-app
+subjects:
+  - kind: ServiceAccount
+    name: winm-consumer
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: winm-llm
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "winm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: winm-app
+subjects:
+  - kind: ServiceAccount
+    name: winm-llm
+    namespace: {{ .Values.namespace }}
+{{- end }}

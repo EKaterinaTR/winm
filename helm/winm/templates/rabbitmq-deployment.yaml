@@ -1,0 +1,56 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: rabbitmq
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+        {{- include "winm.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          ports:
+            - containerPort: 5672
+              name: amqp
+            - containerPort: 15672
+              name: management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: rabbitmq-default-user
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: rabbitmq-default-pass
+          {{- if .Values.rabbitmq.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+          {{- end }}
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+      {{- if .Values.rabbitmq.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: rabbitmq-data
+      {{- end }}
+{{- end }}

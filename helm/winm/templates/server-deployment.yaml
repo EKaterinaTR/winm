@@ -1,0 +1,84 @@
+{{- if .Values.server.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: winm-server
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: winm-server
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.server.replicaCount }}
+  selector:
+    matchLabels:
+      app: winm-server
+  template:
+    metadata:
+      labels:
+        app: winm-server
+        {{- include "winm.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.rbac.enabled }}
+      serviceAccountName: winm-server
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ include "winm.server.image" . }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.server.service.port }}
+          env:
+            - name: NEO4J_URI
+              value: {{ .Values.server.neo4j.uri | quote }}
+            - name: NEO4J_USER
+              value: {{ .Values.server.neo4j.user | quote }}
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: neo4j-password
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: rabbitmq-url
+            - name: GIGACHAT_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: gigachat-credentials
+                  optional: true
+            - name: LLM_SERVICE_URL
+              value: {{ .Values.server.llmServiceUrl | default "http://winm-llm:8001" | quote }}
+            - name: AUTH_DISABLED
+              value: {{ .Values.server.authDisabled | quote }}
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: jwt-secret-key
+            - name: API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: api-username
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: api-password
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.server.probes.liveness.path }}
+              port: {{ .Values.server.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.server.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.server.probes.readiness.path }}
+              port: {{ .Values.server.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.server.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.probes.readiness.periodSeconds }}
+{{- end }}

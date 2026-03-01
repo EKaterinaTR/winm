@@ -1,0 +1,19 @@
+Рефакторинг API, поиска и инфраструктуры
+
+API (server):
+- Частичное обновление (PATCH): можно передавать только name или только description; при пустом теле — 400.
+- Унификация Character/Location/Concept через NameResourceRouter (base_resource.py).
+- Схемы разнесены по server/app/models/schemas/ (location, character, concept, scene, search, llm).
+
+Поиск:
+- Исправлен Cypher: фильтр по подстроке для всех типов узлов; учтён title у Scene, в выдаче — name или title.
+
+Consumer:
+- Update по переданным полям (id + опционально name/description).
+
+Инфраструктура:
+- docker-compose: server, consumer, neo4j, rabbitmq, prometheus.
+- Примеры env: .env.server.example, .env.consumer.example.
+- .gitignore: Python, IDE, env, OS; __pycache__ удалены из репозитория.
+
+Документация: AGENTS.md, ARCHITECTURE_REVIEW.md, docs/METRICS.md.

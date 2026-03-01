@@ -1,0 +1,11 @@
+apiVersion: v2
+name: winm
+description: WinM — графовая база знаний для визуальной новеллы (server + consumer)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - winm
+  - neo4j
+  - rabbitmq
+maintainers: []

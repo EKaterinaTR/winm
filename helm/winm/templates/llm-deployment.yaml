@@ -1,0 +1,51 @@
+{{- if .Values.llm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: winm-llm
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: winm-llm
+    {{- include "winm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.llm.replicaCount }}
+  selector:
+    matchLabels:
+      app: winm-llm
+  template:
+    metadata:
+      labels:
+        app: winm-llm
+        {{- include "winm.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.rbac.enabled }}
+      serviceAccountName: winm-llm
+      {{- end }}
+      containers:
+        - name: llm
+          image: {{ include "winm.llm.image" . }}
+          imagePullPolicy: {{ .Values.llm.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.llm.service.port }}
+          env:
+            - name: GIGACHAT_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: gigachat-credentials
+                  optional: true
+          resources:
+            {{- toYaml .Values.llm.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.llm.probes.liveness.path }}
+              port: {{ .Values.llm.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.llm.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.llm.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.llm.probes.readiness.path }}
+              port: {{ .Values.llm.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.llm.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.llm.probes.readiness.periodSeconds }}
+{{- end }}
