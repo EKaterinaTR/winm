@@ -80,10 +80,26 @@ python -m app.main
 3. Consumer получает сообщение, создаёт узел в Neo4j и дописывает строку в `exports/events.jsonl`.
 4. Чтение: `GET /api/locations` — сервер читает из Neo4j.
 
+## Доступ к API (JWT и Ingress)
+
+### Аутентификация
+
+Все эндпоинты под префиксом `/api/`, кроме `/api/auth/token`, требуют JWT. Эндпоинты `/health` и `/metrics` доступны без токена.
+
+1. Получить токен: `POST /api/auth/token` с телом `{"username": "api", "password": "api"}` (учётные данные задаются переменными `API_USERNAME`, `API_PASSWORD` или по умолчанию `api`/`api`).
+2. В запросах к API передавать заголовок: `Authorization: Bearer <access_token>`.
+
+Для локальной разработки можно отключить проверку: `AUTH_DISABLED=true`.
+
+### Ingress (Kubernetes)
+
+В Helm-чарте включён Ingress для доступа к API снаружи кластера. В `helm/winm/values.yaml` задаётся `ingress.enabled: true`, `ingress.className: nginx` и список `ingress.hosts` (по умолчанию `winm-api.local`). Для HTTPS нужно задать `ingress.tls` (имя Secret с сертификатом) и при использовании cert-manager — аннотации, например `cert-manager.io/cluster-issuer: letsencrypt-prod`. Подробнее — комментарии в `values.yaml` в секции `ingress`.
+
 ## API (кратко)
 
 | Метод | Путь | Описание |
 |-------|------|----------|
+| POST | /api/auth/token | Получить JWT (username, password в теле) |
 | POST | /api/locations | Создать локацию (202, событие в брокер) |
 | GET | /api/locations | Список локаций из графа |
 | GET | /api/locations/{id} | Локация по id |
@@ -131,6 +147,8 @@ CI (GitHub Actions) запускает тесты для server и consumer; в 
 
 - **AGENTS.md** — краткие инструкции для AI-агента (структура, соглашения, тесты).
 - **.cursor/rules/** — правила Cursor: архитектура (always apply), тесты (при работе с `tests/`).
+- **CONTRIBUTORS.md** — список участников команды (курс «Проектирование и разработка распределенных программных систем»).
+- **docs/COURSE_READINESS.md** — соответствие проекта требованиям курса и чек-лист на защиту.
 
 ## Структура проекта
 
@@ -140,12 +158,16 @@ winm/
 ├── .github/workflows/ci.yml   # тесты + сборка образов и пуш в GHCR
 ├── helm/winm/           # Helm-чарт (Chart.yaml, values.yaml, templates/)
 ├── argocd/              # GitOps: Application для ArgoCD
+├── chaos/               # Chaos Mesh: эксперименты (pod-kill и др.)
 ├── k8s/                 # сырые манифесты (альтернатива Helm)
+├── CONTRIBUTORS.md      # участники команды
 ├── AGENTS.md
 ├── .cursor/rules/
+├── docs/                # METRICS.md, COURSE_READINESS.md
 ├── shared/
 ├── prometheus/
 ├── server/
 ├── consumer/
+├── llm-service/
 └── README.md
 ```

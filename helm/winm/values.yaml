@@ -38,8 +38,31 @@ server:
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
   llmServiceUrl: "http://winm-llm:8001"
+  # JWT: auth_disabled=true отключает проверку токена (удобно для локальной разработки).
+  authDisabled: false
 
-# Consumer (RabbitMQ consumer)
+# Ingress: внешний доступ к API (HTTPS при наличии TLS)
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: winm-api.local
+  annotations: {}
+  # Пример с cert-manager (Let's Encrypt): раскомментировать и задать свой host + issuer.
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  # hosts:
+  #   - host: api.yourdomain.com
+  # tls:
+  #   - secretName: winm-server-tls
+  #     hosts:
+  #       - api.yourdomain.com
+  tls: []
+  # Вариант с готовым TLS-сертификатом (secret создаётся вручную или через sealed-secrets):
+  # tls:
+  #   - secretName: winm-server-tls
+  #     hosts:
+  #       - winm-api.local
 consumer:
   enabled: true
   replicaCount: 1
@@ -66,7 +89,8 @@ consumer:
 
 # Секреты: имя существующего Secret в namespace (создаётся вручную или через Sealed Secrets).
 # При neo4j.enabled/rabbitmq.enabled и create: false в секрете нужны также: neo4j-auth (формат "neo4j/<password>"), rabbitmq-default-user, rabbitmq-default-pass.
-# Ключи: neo4j-password, neo4j-auth (для пода Neo4j), rabbitmq-url, rabbitmq-default-user, rabbitmq-default-pass (для пода RabbitMQ), gigachat-credentials (optional)
+# Для JWT: jwt-secret-key, api-username, api-password.
+# Ключи: neo4j-password, neo4j-auth, rabbitmq-url, ..., gigachat-credentials (optional), jwt-secret-key, api-username, api-password
 secrets:
   name: winm-secrets
   # Создавать Secret из values (только для dev; в prod использовать внешний Secret).
@@ -75,8 +99,11 @@ secrets:
   neo4jPassword: ""
   rabbitmqUrl: "amqp://guest:guest@rabbitmq:5672/"
   gigachatCredentials: ""
+  jwtSecretKey: ""
+  apiUsername: "api"
+  apiPassword: "api"
 
-# LLM service (GigaChat) — третий микросервис
+# LLM service (GigaChat)
 llm:
   enabled: true
   replicaCount: 1

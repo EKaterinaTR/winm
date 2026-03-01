@@ -5,6 +5,7 @@ from app.models.schemas.concept import ConceptCreate, ConceptUpdate, ConceptRead
 from app.models.schemas.scene import SceneCreate, SceneUpdate, SceneRead
 from app.models.schemas.search import SearchResult
 from app.models.schemas.llm import LLMAnswerRequest, LLMAnswerResponse
+from app.models.schemas.auth import TokenRequest, TokenResponse
 
 __all__ = [
     "LocationCreate",
@@ -22,4 +23,6 @@ __all__ = [
     "SearchResult",
     "LLMAnswerRequest",
     "LLMAnswerResponse",
+    "TokenRequest",
+    "TokenResponse",
 ]

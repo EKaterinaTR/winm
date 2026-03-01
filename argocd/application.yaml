@@ -13,8 +13,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_ORG/winm.git  # заменить на ваш репозиторий
-    targetRevision: HEAD                          # или main, master, k8s, тег
+    repoURL: https://github.com/EKaterinaTR/winm.git 
+    targetRevision: k8s                        
     path: helm/winm
     helm:
       valueFiles:

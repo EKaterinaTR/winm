@@ -30,3 +30,4 @@ k8s/secret.yaml
 # OS
 .DS_Store
 Thumbs.db
+docs/COURSE_READINESS.md

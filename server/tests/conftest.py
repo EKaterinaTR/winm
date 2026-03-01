@@ -5,6 +5,20 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.auth import get_current_user
+
+
+async def _mock_get_current_user():
+    """В тестах не проверяем JWT — подставляем пользователя."""
+    return {"sub": "test"}
+
+
+@pytest.fixture(autouse=True)
+def override_auth():
+    """Все тесты API выполняются с «подставным» пользователем (JWT не требуется)."""
+    app.dependency_overrides[get_current_user] = _mock_get_current_user
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
