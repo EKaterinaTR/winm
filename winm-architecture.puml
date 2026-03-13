@@ -1,0 +1,110 @@
+@startuml
+title WinM – Общая архитектурная схема
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam ArrowThickness 1.2
+skinparam ArrowColor #444444
+skinparam PackageBorderColor #888888
+skinparam PackageFontColor #222222
+
+rectangle "Клиенты\n(Frontend / внешние сервисы)" as Clients
+
+package "WinM монорепозиторий" {
+
+  package "server\n(FastAPI)" as Server {
+    [REST API\n(/api/*)] as RestApi
+    [Auth / JWT\n(/api/auth/token)] as AuthApi
+    [LLM Proxy\n(/api/llm/answer)] as LlmProxy
+    [Metrics endpoint\n(/metrics)] as MetricsServer
+  }
+
+  package "consumer\n(Worker)" as Consumer {
+    [Очередь обработчиков\n(events consumer)] as QueueConsumer
+    [Запись в Neo4j\n(graph writer)] as GraphWriter
+    [Экспорт событий\n(exports/events.jsonl)] as Exporter
+  }
+
+  package "shared" as Shared {
+    [События домена\n(EventType,\nbuild_event)] as SharedEvents
+  }
+
+  package "llm-service\n(отдельный сервис)" as LlmService {
+    [FastAPI сервис\n/ chat endpoint] as LlmHttp
+  }
+}
+
+node "Neo4j\n(graph DB)" as Neo4j
+node "RabbitMQ\n(message broker)" as Rabbit
+node "Prometheus\n(metrics storage)" as Prometheus
+
+package "Инфраструктура" {
+  [Docker Compose] as DockerCompose
+  [Kubernetes + Helm\n(helm/winm)] as Helm
+  [ArgoCD\n(argocd/)] as Argo
+  [Chaos Mesh\n(chaos/)] as ChaosMesh
+}
+
+Clients --> RestApi : HTTP\nJSON / JWT
+Clients --> AuthApi : HTTP\nlogin/password
+
+RestApi --> Neo4j : Чтение\nCypher (через драйвер)
+RestApi --> Rabbit : Публикация\nсобытий (graph.tasks)
+RestApi --> MetricsServer : локальный endpoint
+MetricsServer --> Prometheus : scrape /metrics
+
+RestApi --> LlmProxy
+LlmProxy --> LlmHttp : HTTP\n(question, role)
+
+QueueConsumer --> Rabbit : Подписка\nна очередь graph.tasks
+QueueConsumer --> GraphWriter
+GraphWriter --> Neo4j : Запись/обновление\nузлов и связей
+QueueConsumer --> Exporter
+Exporter --> "events.jsonl" : append\nJSON событий
+
+Server -[hidden]- Consumer
+Server -[hidden]- Shared
+Consumer -[hidden]- Shared
+
+Server ..> SharedEvents : использует\n(тип события,\nbuild_event)
+Consumer ..> SharedEvents : использует\n(тип события,\nbuild_event)
+
+DockerCompose ..> Server : поднимает
+DockerCompose ..> Consumer
+DockerCompose ..> Neo4j
+DockerCompose ..> Rabbit
+DockerCompose ..> Prometheus
+DockerCompose ..> LlmService
+
+Helm ..> Server : деплой\nв Kubernetes
+Helm ..> Consumer
+Helm ..> LlmService
+Helm ..> Prometheus
+
+Argo ..> Helm : GitOps\nsync
+ChaosMesh ..> Server : эксперименты\n(под-килл и др.)
+ChaosMesh ..> Consumer
+
+note top of Server
+  FastAPI-приложение:
+  - чтение из Neo4j
+  - публикация событий в RabbitMQ
+  - JWT-аутентификация
+  - экспорт метрик для Prometheus
+end note
+
+note right of Consumer
+  Worker:
+  - подписка на RabbitMQ
+  - запись в граф Neo4j
+  - экспорт событий в JSONL
+end note
+
+note bottom of Shared
+  Общие доменные события:
+  - типы EventType
+  - фабрика build_event
+end note
+
+@enduml
+
