@@ -31,6 +31,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: neo4j-auth
+            # В Kubernetes сервис с именем neo4j добавляет env-переменные, начинающиеся с NEO4J_ (например, NEO4J_PORT_7687_TCP_PORT),
+            # которые Neo4j интерпретирует как настройки конфигурации и при strict_validation падает с ошибкой
+            # "Unrecognized setting. No declared setting with name: PORT.7687.TCP.PORT".
+            # Явно отключаем строгую валидацию конфигурации, чтобы игнорировать такие лишние env-переменные.
+            - name: NEO4J_server_config_strict__validation__enabled
+              value: "false"
           {{- if .Values.neo4j.persistence.enabled }}
           volumeMounts:
             - name: data
