@@ -143,6 +143,24 @@ PYTHONPATH=.:.. pytest tests -v --cov=app --cov-report=term-missing --cov-fail-u
 
 CI (GitHub Actions) запускает тесты для server и consumer; в логе job выводится отчёт покрытия (`--cov-report=term-missing`), порог 50% (`--cov-fail-under=50`).
 
+## Chaos Engineering (Chaos Mesh)
+
+В репозитории есть каталог `chaos/` с манифестами Chaos Mesh, которые используются для проверки устойчивости WinM к отказам.
+
+Основные сценарии:
+
+- **Подавление pod-ов**: эксперимент `pod-kill`, который периодически убивает pod-ы отдельных компонентов (например, `server` или `consumer`) для проверки корректности обработки ошибок и восстановления.
+
+Отчёт по запуску экспериментов включает скриншоты из Chaos Dashboard:
+
+- **Самовостановление**  
+  ![Chaos Mesh experiments](docs/image/image.png)
+
+- **Убийство подов**  
+  ![Chaos Mesh experiment details](docs/image/image2.png)
+
+
+
 ## Для агентов и Cursor
 
 - **AGENTS.md** — краткие инструкции для AI-агента (структура, соглашения, тесты).
