@@ -10,6 +10,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- with .Values.rabbitmq.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.rabbitmq.persistence.size }}

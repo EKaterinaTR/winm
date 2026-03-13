@@ -19,7 +19,7 @@ server:
       memory: "128Mi"
       cpu: "100m"
   neo4j:
-    uri: "bolt://neo4j:7687"
+    uri: "bolt://graph-db:7687"
     user: "neo4j"
   probes:
     liveness:
@@ -130,20 +130,24 @@ llm:
       periodSeconds: 10
 
 # Глобальный registry: если задан, образы будут <registry>/<repository>:<tag>
-# Пример: ghcr.io/myorg/winm-server
+# В CI образы публикуются в GHCR репозитория EKaterinaTR/winm-*,
+# поэтому по умолчанию используем ghcr.io/ekaterinatr.
 global:
-  imageRegistry: ""
+  imageRegistry: "ghcr.io/ekaterinatr"
 
 # Neo4j — разворачивается из образа с персистентным томом (опционально)
 neo4j:
   enabled: true
   image:
     repository: neo4j
-    tag: "5"
+    tag: "4.4"
     pullPolicy: IfNotPresent
   persistence:
     enabled: true
     size: 10Gi
+    # storageClassName для PVC. По умолчанию — fast.ru-7a (OpenStack Cinder в учебном кластере).
+    # Для другого кластера можно переопределить через values-override или установить default StorageClass.
+    storageClassName: "fast.ru-7a"
 
 # RabbitMQ — разворачивается из образа с персистентным томом (опционально)
 rabbitmq:
@@ -155,6 +159,8 @@ rabbitmq:
   persistence:
     enabled: true
     size: 5Gi
+    # storageClassName для PVC (см. комментарий выше про neo4j.persistence.storageClassName).
+    storageClassName: "fast.ru-7a"
   auth:
     user: guest
     password: guest
