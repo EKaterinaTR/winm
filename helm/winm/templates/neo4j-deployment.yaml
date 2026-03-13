@@ -31,10 +31,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: neo4j-auth
-            # Отключаем strict-validation конфигурации Neo4j 4.x, чтобы он игнорировал лишние env-переменные,
-            # автоматически созданные Kubernetes (NEO4J_*), такие как DB_SERVICE_PORT.
-            - name: NEO4J_dbms_config_strict__validation__enabled
-              value: "false"
           {{- if .Values.neo4j.persistence.enabled }}
           volumeMounts:
             - name: data

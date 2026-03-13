@@ -19,7 +19,7 @@ server:
       memory: "128Mi"
       cpu: "100m"
   neo4j:
-    uri: "bolt://neo4j-db:7687"
+    uri: "bolt://graph-db:7687"
     user: "neo4j"
   probes:
     liveness:
