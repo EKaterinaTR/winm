@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: neo4j
+  name: neo4j-db
   namespace: {{ .Values.namespace }}
   labels:
     app: neo4j
